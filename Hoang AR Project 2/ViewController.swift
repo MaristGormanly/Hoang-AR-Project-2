@@ -41,6 +41,24 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         //let dummyNode = scene.rootNode.childNodes(withName: ")
     }
     
+    func createPlaneNode(anchor: ARPlaneAnchor) -> SCNNode {
+        let plane = SCNPlane(width: CGFloat(anchor.extent.x), height: CGFloat(anchor.extent.z))
+        
+        let planeImage = UIImage(named: "art.scnassets/tron_grid.png")
+        let planeMaterial = SCNMaterial()
+        planeMaterial.diffuse.contents = planeImage
+        planeMaterial.isDoubleSided = true
+        
+        plane.materials = [planeMaterial]
+        
+        let planeNode = SCNNode(geometry: plane)
+        planeNode.position = SCNVector3Make(anchor.center.x, 0, anchor.center.z)
+        
+        planeNode.transform = SCNMatrix4MakeRotation(-Float.pi / 2, 1, 0, 0)
+        
+        return planeNode
+    }
+    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
@@ -68,12 +86,22 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     // Override to create and configure nodes for anchors added to the view's session.
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         guard let anchorPlane = anchor as? ARPlaneAnchor else { return }
-        print ("new plane anchor found at", anchorPlane.extent)
+        //print ("new plane anchor found at", anchorPlane.extent)
+        let planeNode = createPlaneNode(anchor: anchorPlane)
+                
+        node.addChildNode(planeNode)
     }
     
     func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
         guard let anchorPlane = anchor as? ARPlaneAnchor else { return }
-        print ("plane anchor updated to", anchorPlane.extent)
+        //print ("plane anchor updated to", anchorPlane.extent)
+        node.enumerateChildNodes {
+            (childNode, _) in
+            childNode.removeFromParentNode()
+        }
+        
+        let planeNode = createPlaneNode(anchor: anchorPlane)
+        node.addChildNode(planeNode)
     }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
