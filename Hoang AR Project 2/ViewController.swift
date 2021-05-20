@@ -10,6 +10,8 @@ import SceneKit
 import ARKit
 
 class ViewController: UIViewController, ARSCNViewDelegate {
+    
+    var cubes = [SCNNode()]
 
     @IBOutlet var sceneView: ARSCNView!
     
@@ -27,18 +29,19 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Create a new scene
         let scene = SCNScene()
         
-        let ballGeometry = SCNSphere(radius: 0.1)
+        /*let ballGeometry = SCNSphere(radius: 0.1)
         
         let ballNode = SCNNode(geometry: ballGeometry)
         
         ballNode.position = SCNVector3Make(0, 0, -0.5)
         
-        scene.rootNode.addChildNode(ballNode)
+        scene.rootNode.addChildNode(ballNode)*/
         
         // Set the scene to the view
         sceneView.scene = scene
         
         sceneView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap(recognizer:))))
+        sceneView.addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(handleHold(recognizer:))))
     }
     
     @objc func handleTap(recognizer: UITapGestureRecognizer){
@@ -58,11 +61,57 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
     }
     
+    @objc func handleHold(recognizer: UILongPressGestureRecognizer){
+        let tapLocation = recognizer.location(in: sceneView)
+        let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
+        let alignment: ARRaycastQuery.TargetAlignment = .any
+        let query: ARRaycastQuery? = sceneView.raycastQuery(from: tapLocation, allowing: estimatedPlane, alignment: alignment)
+
+        if let nonOptQuery: ARRaycastQuery = query {
+
+            let result: [ARRaycastResult] = sceneView.session.raycast(nonOptQuery)
+
+            guard let rayCast: ARRaycastResult = result.first
+            else { return }
+
+            self.explode(rayCast)
+        }
+    }
+    
+    func explode(_ result: ARRaycastResult){
+        let position = SCNVector3(result.worldTransform.columns.3.x, result.worldTransform.columns.3.y - 0.1, result.worldTransform.columns.3.z)
+        
+        
+        for cubeNode in cubes {
+            // The distance between the explosion and the geometry
+            var distancex = cubeNode.worldPosition.x - position.x
+            var distancey = cubeNode.worldPosition.y - position.y
+            var distancez = cubeNode.worldPosition.z - position.z
+
+            let len = (distancex * distancex + distancey * distancey + distancez * distancez)
+
+            let maxDistance = 2
+            var scale = max(0, (maxDistance - Int(len)))
+
+            // Scale the force of the explosion
+            scale = scale * scale * 2
+            
+            distancex = distancex / len * Float(scale);
+            distancey = distancey / len * Float(scale);
+            distancez = distancez / len * Float(scale);
+            
+            cubeNode.physicsBody?.applyForce(SCNVector3(x: 0.05, y: 0.05, z: 0.05), asImpulse: true)
+        }
+        
+    }
+    
     func insertGeometry(_ result: ARRaycastResult) {
 
-        let ball = SCNSphere(radius: 0.1)
-        let node = SCNNode(geometry: ball)
+        //let ball = SCNSphere(radius: 0.1)
+        //let node = SCNNode(geometry: ball)
 
+        let cube = SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0)
+        let node = SCNNode(geometry: cube)
         // The physicsBody tells SceneKit this geometry should be manipulated by the physics engine
         node.physicsBody = SCNPhysicsBody(type: .dynamic, shape: nil)
         node.physicsBody?.mass = 2.0
@@ -73,11 +122,15 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         node.position = SCNVector3(result.worldTransform.columns.3.x, result.worldTransform.columns.3.y + 0.5, result.worldTransform.columns.3.z)
 
+        cubes.append(node)
+        
         self.sceneView.scene.rootNode.addChildNode(node)
     }
     
     func createPlaneNode(anchor: ARPlaneAnchor) -> SCNNode {
-        let plane = SCNPlane(width: CGFloat(anchor.extent.x), height: CGFloat(anchor.extent.z))
+        
+        let planeHeight = 0.01;
+        let plane = SCNBox(width: CGFloat(anchor.extent.x), height: CGFloat(anchor.extent.z), length: CGFloat(planeHeight), chamferRadius: 0)
         
         let planeImage = UIImage(named: "art.scnassets/tron_grid.png")
         let planeMaterial = SCNMaterial()
