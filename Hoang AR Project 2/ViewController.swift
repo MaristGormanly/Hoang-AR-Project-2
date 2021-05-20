@@ -22,11 +22,23 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
         
+        sceneView.autoenablesDefaultLighting = true
+        
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        let scene = SCNScene()
+        
+        let ballGeometry = SCNSphere(radius: 0.1)
+        
+        let ballNode = SCNNode(geometry: ballGeometry)
+        
+        ballNode.position = SCNVector3Make(0, 0, -0.5)
+        
+        scene.rootNode.addChildNode(ballNode)
         
         // Set the scene to the view
         sceneView.scene = scene
+        
+        //let dummyNode = scene.rootNode.childNodes(withName: ")
     }
     
     override func viewWillAppear(_ animated: Bool) {
