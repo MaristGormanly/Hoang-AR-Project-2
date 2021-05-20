@@ -91,7 +91,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             let len = (distancex * distancex + distancey * distancey + distancez * distancez)
 
             let maxDistance = 2
-            var scale = max(0, (maxDistance - Int(len)))
+            var scale = max(0, (Int(maxDistance) - Int(len)))
 
             // Scale the force of the explosion
             scale = scale * scale * 2
@@ -100,7 +100,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             distancey = distancey / len * Float(scale);
             distancez = distancez / len * Float(scale);
             
-            cubeNode.physicsBody?.applyForce(SCNVector3(x: 0.05, y: 0.05, z: 0.05), asImpulse: true)
+            let forceArea = SCNVector3(distancex, distancey, distancez)
+            
+            cubeNode.physicsBody?.applyForce(forceArea, asImpulse: true)
         }
         
     }
