@@ -40,11 +40,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Set the scene to the view
         sceneView.scene = scene
         
+        // Gesture recognizers for the tap to place and the hold for force
         sceneView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap(recognizer:))))
         sceneView.addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(handleHold(recognizer:))))
     }
     
+    // Tap action
     @objc func handleTap(recognizer: UITapGestureRecognizer){
+        // Selects spot on device then translates 2d to 3d space
         let tapLocation = recognizer.location(in: sceneView)
         let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
         let alignment: ARRaycastQuery.TargetAlignment = .any
@@ -57,11 +60,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             guard let rayCast: ARRaycastResult = result.first
             else { return }
 
+            // Inserts geometry
             self.insertGeometry(rayCast)
         }
     }
     
+    // Hold action
     @objc func handleHold(recognizer: UILongPressGestureRecognizer){
+        // Selects spot on device then translates 2d to 3d space
         let tapLocation = recognizer.location(in: sceneView)
         let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
         let alignment: ARRaycastQuery.TargetAlignment = .any
@@ -74,6 +80,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             guard let rayCast: ARRaycastResult = result.first
             else { return }
 
+            //Causes outwards force from hold spot
             self.explode(rayCast)
         }
     }
@@ -81,7 +88,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     func explode(_ result: ARRaycastResult){
         let position = SCNVector3(result.worldTransform.columns.3.x, result.worldTransform.columns.3.y - 0.1, result.worldTransform.columns.3.z)
         
-        
+        //Find all cubes within the area
         for cubeNode in cubes {
             // The distance between the explosion and the geometry
             var distancex = cubeNode.worldPosition.x - position.x
@@ -96,9 +103,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             // Scale the force of the explosion
             scale = scale * scale * 2
             
-            distancex = distancex / len * Float(scale);
-            distancey = distancey / len * Float(scale);
-            distancez = distancez / len * Float(scale);
+            distancex = distancex / len * Float(scale)
+            distancey = distancey / len * Float(scale)
+            distancez = distancez / len * Float(scale)
             
             let forceArea = SCNVector3(distancex, distancey, distancez)
             
@@ -114,16 +121,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
         let cube = SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0)
         let node = SCNNode(geometry: cube)
-        // The physicsBody tells SceneKit this geometry should be manipulated by the physics engine
+        
+        // Add physics to the object
         node.physicsBody = SCNPhysicsBody(type: .dynamic, shape: nil)
         node.physicsBody?.mass = 2.0
         node.physicsBody?.categoryBitMask = 1
 
-        // We insert the geometry slightly above the point the user tapped, so that it drops onto the plane
-        // using the physics engine
+        // Insert the geometry slightly above the point the user tapped
         
         node.position = SCNVector3(result.worldTransform.columns.3.x, result.worldTransform.columns.3.y + 0.5, result.worldTransform.columns.3.z)
 
+        // Add the cube to our array to be located later
         cubes.append(node)
         
         self.sceneView.scene.rootNode.addChildNode(node)
@@ -131,9 +139,11 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     func createPlaneNode(anchor: ARPlaneAnchor) -> SCNNode {
         
+        // The plane needs to be a box or else the physics make it so objects on top jitter
         let planeHeight = 0.01;
         let plane = SCNBox(width: CGFloat(anchor.extent.x), height: CGFloat(anchor.extent.z), length: CGFloat(planeHeight), chamferRadius: 0)
         
+        //image for visualization
         let planeImage = UIImage(named: "art.scnassets/tron_grid.png")
         let planeMaterial = SCNMaterial()
         planeMaterial.diffuse.contents = planeImage
@@ -146,6 +156,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         planeNode.transform = SCNMatrix4MakeRotation(-Float.pi / 2, 1, 0, 0)
         
+        // Give the plane some physics so it doesnt move but can interact with other objects
         planeNode.physicsBody = SCNPhysicsBody(type: .static, shape: nil)
         planeNode.physicsBody?.categoryBitMask = 2
         
@@ -158,7 +169,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
         
-        self.sceneView.debugOptions = [ARSCNDebugOptions.showWorldOrigin, ARSCNDebugOptions.showFeaturePoints]
+        // For debugging
+        //self.sceneView.debugOptions = [ARSCNDebugOptions.showWorldOrigin, ARSCNDebugOptions.showFeaturePoints]
                 
         configuration.planeDetection = .horizontal
 
@@ -176,7 +188,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     // MARK: - ARSCNViewDelegate
     
 
-    // Override to create and configure nodes for anchors added to the view's session.
+    // Located and adds nodes for the plane anchor when establishing new planes in the area
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         guard let anchorPlane = anchor as? ARPlaneAnchor else { return }
         //print ("new plane anchor found at", anchorPlane.extent)
@@ -185,6 +197,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         node.addChildNode(planeNode)
     }
     
+    //updates the planes when they shift
     func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
         guard let anchorPlane = anchor as? ARPlaneAnchor else { return }
         //print ("plane anchor updated to", anchorPlane.extent)
